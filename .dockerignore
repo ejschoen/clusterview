@@ -3,11 +3,9 @@ src
 scripts
 public
 config
-*.go
-go.*
 README.md
 Dockerfile
-Dockerfile.dockerignore
+.dockerignore
 tsconfig.json
 package-lock.json
 package.json

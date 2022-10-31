@@ -25,3 +25,4 @@ vendor
 .idea/inspectionProfiles
 .idea/vcs.xml
 ./clusterview
+**/*~
