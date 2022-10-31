@@ -1,7 +1,49 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: clusterview
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: clusterview-sa
+  namespace: clusterview
+automountServiceAccountToken: true
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clusterview-cluster-role
+rules:
+  - apiGroups:
+     - "apps/v1"
+     - "v1"
+     - ""
+    resources:
+     - "pods"
+     - "nodes"
+    verbs:
+     - "list"
+     - "get"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clusterview-crb
+roleRef:
+  name: clusterview-cluster-role
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: clusterview-sa
+  namespace: clusterview
+---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: clusterview
+  namespace: clusterview
 spec:
   selector:
     matchLabels:
@@ -11,9 +53,12 @@ spec:
       labels:
          app: clusterview
     spec:
+      serviceAccountName: clusterview-sa
+      automountServiceAccountToken: true
       containers:
        - name: clusterview
          image: i2kconnect.azurecr.io/clusterview:0.1.0-SNAPSHOT
+         imagePullPolicy: Always
          resources:
            requests:
              memory: 15Mi
@@ -26,6 +71,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: clusterview
+  namespace: clusterview
 spec:
   type: NodePort
   selector:
