@@ -108,8 +108,8 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
             data.Pods.sort((p1:PodRequest, p2:PodRequest) => p2.Memory-p1.Memory)
             let xs = [0];
             let ys = [0];
-            xs.push(... data.Pods.map((pod: PodRequest) => pod.CPU).map((sum => value => sum += value)(0)));
-            ys.push(... data.Pods.map((pod: PodRequest) => pod.Memory/MiB).map((sum => value => sum += value)(0)));
+            xs.push(...data.Pods.map((pod: PodRequest) => pod.CPU).map((sum => value => sum += value)(0)));
+            ys.push(...data.Pods.map((pod: PodRequest) => pod.Memory/MiB).map((sum => value => sum += value)(0)));
             return (
                 <Grid2 key={key} xs={6} sm={4} md={4} lg={3}>
                     <Card variant="outlined" raised={true}>
@@ -140,7 +140,6 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                 </Grid2>
             )
         })
-        return(<div></div>)
     }
 
     renderAsTables = (requests: PodMap<PodData>) => {

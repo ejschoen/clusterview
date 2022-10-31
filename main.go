@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/rest"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,30 +104,61 @@ func getResourceRequests(clientset *kubernetes.Clientset) ClusterData {
 	return clusterData
 }
 
-func main() {
+func isInCluster() bool {
+	_, err := os.Stat("/run/secrets/kubernetes.io/serviceaccount/token")
+	return err == nil
+}
 
-	var kubeconfig *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+func getClientSet() *kubernetes.Clientset {
+	if isInCluster() {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			panic(err.Error())
+		}
+		// creates the clientset
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			panic(err.Error())
+		}
+		return clientset
 	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
+		var kubeconfig *string
+		if home := homedir.HomeDir(); home != "" {
+			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		} else {
+			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+		}
+		flag.Parse()
 
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
+		// use the current context in kubeconfig
+		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
 
-	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
+		// create the clientset
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			panic(err.Error())
+		}
+		return clientset
 	}
+}
 
-	r := gin.Default()
-	r.GET("/podrequests", func(c *gin.Context) {
+func main() {
+	staticAssets := []string{"asset-manifest.json", "favicon.ico", "logo192.png", "logo512.png",
+		"manifest.json", "robots.txt"}
+
+	clientset := getClientSet()
+	router := gin.Default()
+
+	for _, file := range staticAssets {
+		router.StaticFile("/"+file, "./build/"+file)
+	}
+	router.StaticFile("/.", "./build/index.html")
+	router.StaticFile("/index.html", "./build/index.html")
+	router.Static("/static", "./build/static")
+	router.GET("/podrequests", func(c *gin.Context) {
 		requests := getResourceRequests(clientset)
 		byteslice, err := json.Marshal(requests)
 		if err != nil {
@@ -136,6 +169,6 @@ func main() {
 			c.Writer.Write(byteslice)
 		}
 	})
-	r.Run()
+	router.Run()
 
 }

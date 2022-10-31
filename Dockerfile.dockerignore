@@ -1,0 +1,14 @@
+node_modules
+src
+scripts
+public
+config
+*.go
+go.*
+README.md
+Dockerfile
+Dockerfile.dockerignore
+tsconfig.json
+package-lock.json
+package.json
+vendor

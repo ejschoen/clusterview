@@ -1,0 +1,37 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: clusterview
+spec:
+  selector:
+    matchLabels:
+      app: clusterview
+  template:
+    metadata:
+      labels:
+         app: clusterview
+    spec:
+      containers:
+       - name: clusterview
+         image: i2kconnect.azurecr.io/clusterview:0.1.0-SNAPSHOT
+         resources:
+           requests:
+             memory: 15Mi
+             cpu: 50m
+         ports:
+          - containerPort: 8080
+            name: clusterview
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: clusterview
+spec:
+  type: NodePort
+  selector:
+    app: clusterview
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+    name: clusterview-port
