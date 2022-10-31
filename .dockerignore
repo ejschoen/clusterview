@@ -1,12 +1,5 @@
 node_modules
-src
-scripts
-public
-config
 README.md
 Dockerfile
 .dockerignore
-tsconfig.json
-package-lock.json
-package.json
 vendor
