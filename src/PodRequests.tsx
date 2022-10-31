@@ -3,12 +3,8 @@ import {CardHeader, CardContent, Card } from '@mui/material';
 import Grid2 from '@mui/material/Unstable_Grid2';
 import {Table,TableBody,TableCell,TableRow,TableHead,TableFooter} from "@mui/material";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-// @ts-ignore
-import { BP2D } from 'binpackingjs';
 import '@mui/lab/themeAugmentation';
 import './PodRequests.css'
-
-const { Bin, Box, Packer } = BP2D;
 
 const MiB = 1024*1024;
 
@@ -107,14 +103,13 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
             let data:PodData = requests[key];
             let nodeMemory = Math.max(data.Capacity.Memory/MiB, 1.0);
             let nodeCPU = Math.max(data.Capacity.CPU, 0.01);
-            let nodeBin = new Bin(nodeCPU,nodeMemory);
-            let podBoxes = data.Pods.map((pod)=> new Box(pod.CPU, pod.Memory/MiB));
-            let packer = new Packer([nodeBin]);
-            let scaleX = 1.0/1.0;
-            let scaleY = 1.0/10.0;
-            packer.pack(podBoxes);
-            let packedBin = packer.bins[0];
-
+            let scaleX = 1.0/5.0;
+            let scaleY = 1.0/20.0;
+            data.Pods.sort((p1:PodRequest, p2:PodRequest) => p2.Memory-p1.Memory)
+            let xs = [0];
+            let ys = [0];
+            xs.push(... data.Pods.map((pod: PodRequest) => pod.CPU).map((sum => value => sum += value)(0)));
+            ys.push(... data.Pods.map((pod: PodRequest) => pod.Memory/MiB).map((sum => value => sum += value)(0)));
             return (
                 <Grid2 key={key} xs={6} sm={4} md={4} lg={3}>
                     <Card variant="outlined" raised={true}>
@@ -122,26 +117,17 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                         <CardContent sx={{width: nodeCPU*scaleX, height: nodeMemory*scaleY}}>
                             <svg width={nodeCPU*scaleX} height={nodeMemory*scaleY}>
                                 {
-                                    packedBin.boxes.map((box: typeof Box, boxId: number) => {
-                                        let index = podBoxes.indexOf(box);
-                                        let namespace="";
-                                        let title="";
-                                        let memory=0;
-                                        let CPU = 0;
-                                        if (index != -1) {
-                                            let pod:PodRequest = data.Pods[index];
-                                            namespace = pod.Namespace;
-                                            let name = pod.Name;
-                                            title = `${namespace}/${name}`;
-                                            memory = pod.Memory;
-                                            CPU = pod.CPU;
-                                        }
-
-                                        return (<rect key={`${boxId}`}
-                                                      width={box.width}
-                                                      height={box.height}
-                                                      x = {box.x}
-                                                      y = {box.y}
+                                    data.Pods.map((pod: PodRequest, index) => {
+                                        let namespace = pod.Namespace;
+                                        let name = pod.Name;
+                                        let title = `${namespace}/${name}`;
+                                        let memory = pod.Memory;
+                                        let CPU = pod.CPU;
+                                        return (<rect key={`${title}`}
+                                                      width={pod.CPU}
+                                                      height={pod.Memory/MiB}
+                                                      x = {xs[index]}
+                                                      y = {ys[index]}
                                                       transform={`scale(${scaleX} ${scaleY})`}
                                                       style={{stroke: "#000", fill: this.state.graphicalNamespaceColors[namespace]||"#fff"}}>
                                                 <title>{`${title}: ${Math.round(memory/MiB)}Mi, ${CPU}m`}</title>
