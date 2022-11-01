@@ -20,7 +20,7 @@ export default function ButtonAppBar() {
         setCookie('graphical', event.target.checked, {path:'/'});
         setGraphical(event.target.checked)
     }
-    return (
+    return (<>
       <Box sx={{ flexGrow: 1 }}>
         <AppBar position="static">
           <Toolbar>
@@ -52,5 +52,29 @@ export default function ButtonAppBar() {
           </Box>
 
       </Box>
+    <div style={{position: "fixed", bottom: 48, right: 48, width: 96, height: 96}}>
+        <IconButton size="large"
+                    edge="start"
+                    color="inherit"
+                    aria-label="menu"
+                    sx={{ mr: 2 , display: {xl:"none",lg:"block",md:"block"}}}
+                    href="https://i2kconnect.com"
+                    target="_blank">
+            <I2KIcon style={{width: 96, height: 96, opacity:"50%"}}/>
+        </IconButton>
+    </div>
+    <div style={{position: "fixed", bottom: 48, right: 226, width: 226, height: 96}}>
+        <IconButton size="large"
+                    edge="start"
+                    color="inherit"
+                    aria-label="menu"
+                    sx={{ mr: 2 ,display: {xs:'none',sm:'none',md:'none',lg:'none',xl:'block'}}}
+                    href="https://i2kconnect.com"
+                    target="_blank"
+        >
+            <I2KConnectIcon style={{width: 452, height: 96, opacity:"50%"}}/>
+        </IconButton>
+    </div>
+    </>
 );
 }
