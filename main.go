@@ -151,14 +151,22 @@ func main() {
 
 	clientset := getClientSet()
 	router := gin.Default()
+	rootPath, ok := os.LookupEnv("CLUSTERVIEW_ROOTPATH")
+	var rootPathRouter *gin.RouterGroup
+
+	if ok {
+		rootPathRouter = router.Group(rootPath)
+	} else {
+		rootPathRouter = router.Group("")
+	}
 
 	for _, file := range staticAssets {
-		router.StaticFile("/"+file, "./build/"+file)
+		rootPathRouter.StaticFile("/"+file, "./build/"+file)
 	}
-	router.StaticFile("/.", "./build/index.html")
-	router.StaticFile("/index.html", "./build/index.html")
-	router.Static("/static", "./build/static")
-	router.GET("/podrequests", func(c *gin.Context) {
+	rootPathRouter.StaticFile("/.", "./build/index.html")
+	rootPathRouter.StaticFile("/index.html", "./build/index.html")
+	rootPathRouter.Static("/static", "./build/static")
+	rootPathRouter.GET("/podrequests", func(c *gin.Context) {
 		requests := getResourceRequests(clientset)
 		byteslice, err := json.Marshal(requests)
 		if err != nil {
