@@ -1,5 +1,6 @@
 import React,  {Component} from 'react';
 import {CardHeader, CardContent, Card } from '@mui/material';
+import {Box} from '@mui/material';
 import Grid2 from '@mui/material/Unstable_Grid2';
 import {Table,TableBody,TableCell,TableRow,TableHead,TableFooter} from "@mui/material";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -173,7 +174,7 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                 return s1.localeCompare(s2);
             })
             return (
-                <Grid2 key={key} xs={6} sm={4} md={4} lg={3}>
+                <Grid2 key={key} xs={12} sm={12} md={6} xl={3}>
                     <Card variant="outlined" >
                         <CardHeader title={key}></CardHeader>
                         <Table component={CardContent} sx={{maxWidth: 600, minWidth: 300}}>
@@ -220,11 +221,11 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
     render() {
         return (
             <ThemeProvider theme={theme}>
-                <Grid2 container spacing={2}>
+                <Grid2 container  spacing={2}>
                 {
                     (this.props.graphical) ? this.renderAsBinPacking(this.state.requests) : this.renderAsTables(this.state.requests)
                 }
-            </Grid2>
+                </Grid2>
             </ThemeProvider>
         )
     }
