@@ -81,3 +81,59 @@ spec:
     port: 8080
     targetPort: 8080
     name: clusterview-port
+---
+apiVersion: appgw.ingress.azure.io/v1beta1
+kind: AzureApplicationGatewayRewrite
+metadata:
+  name: clusterview-rewrite-rule-set-cr
+spec:
+  rewriteRules:
+  - name: clusterview-prefix
+    ruleSequence: 20
+    conditions:
+    - ignoreCase: false
+      negate: false
+      variable: var_uri_path
+      pattern: /clusterview(.*)
+    actions:
+      urlConfiguration:
+        modifiedPath: var_uri_path_1
+        reroute: false
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: cvsecret
+  namespace: clusterview
+type: kubernetes.io/tls
+data:
+  tls.crt: <<Paste certificate here>>
+  tls.key: <<Paste secret here>>
+---
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/rewrite-rule-set: clusterview-rewrite-rule-set
+    appgw.ingress.kubernetes.io/health-probe-path: "/"
+  name: clusterview
+  namespace: clusterview
+spec:
+  tls:
+   - hosts:
+      - <<Paste hostname here>>
+     secretName: cvsecret
+  rules:
+   - host: azure-2.i2kconnect.com
+     http:
+      paths:
+       - path: /clusterview
+         pathType: Prefix
+         backend:
+           service:
+             name: clusterview
+             port:
+               number: 8080
+       

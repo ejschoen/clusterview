@@ -26,3 +26,4 @@ vendor
 .idea/vcs.xml
 ./clusterview
 **/*~
+clusterview.yaml.dont-commit-to-github
