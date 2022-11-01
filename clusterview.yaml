@@ -126,7 +126,7 @@ spec:
       - <<Paste hostname here>>
      secretName: cvsecret
   rules:
-   - host: azure-2.i2kconnect.com
+   - host: <<Paste hostname here>>
      http:
       paths:
        - path: /clusterview
