@@ -110,30 +110,50 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
             let ys = [0];
             xs.push(...data.Pods.map((pod: PodRequest) => pod.CPU).map((sum => value => sum += value)(0)));
             ys.push(...data.Pods.map((pod: PodRequest) => pod.Memory/MiB).map((sum => value => sum += value)(0)));
+            let lastPod = data.Pods[data.Pods.length-1];
             return (
-                <Grid2 key={key} xs={6} sm={4} md={4} lg={3}>
+                <Grid2 key={key} sx={{width: Math.round(nodeCPU*scaleX)}}>
                     <Card variant="outlined" raised={true}>
                         <CardHeader title={`${key}: ${Math.round(nodeMemory)}Mi, ${nodeCPU}m`}></CardHeader>
                         <CardContent sx={{width: nodeCPU*scaleX, height: nodeMemory*scaleY}}>
                             <svg width={nodeCPU*scaleX} height={nodeMemory*scaleY}>
-                                {
-                                    data.Pods.map((pod: PodRequest, index) => {
-                                        let namespace = pod.Namespace;
-                                        let name = pod.Name;
-                                        let title = `${namespace}/${name}`;
-                                        let memory = pod.Memory;
-                                        let CPU = pod.CPU;
-                                        return (<rect key={`${title}`}
-                                                      width={pod.CPU}
-                                                      height={pod.Memory/MiB}
-                                                      x = {xs[index]}
-                                                      y = {ys[index]}
-                                                      transform={`scale(${scaleX} ${scaleY})`}
-                                                      style={{stroke: "#000", fill: this.state.graphicalNamespaceColors[namespace]||"#fff"}}>
-                                                <title>{`${title}: ${Math.round(memory/MiB)}Mi, ${CPU}m`}</title>
-                                            </rect>
-                                    )
-                                })}
+                                <defs>
+                                    <pattern id="pattern-stripe"
+                                             width="4" height="4"
+                                             patternUnits="userSpaceOnUse"
+                                             patternTransform="rotate(45)">
+                                        <rect width="2" height="4" transform="translate(0,0)" fill="white"></rect>
+                                    </pattern>
+                                    <mask id="mask-stripe">
+                                        <rect x="0" y="0" width="100%" height="100%" fill="url(#pattern-stripe)" />
+                                    </mask>
+                                </defs>
+                                    {
+                                        [...data.Pods.map((pod: PodRequest, index) => {
+                                            let namespace = pod.Namespace;
+                                            let name = pod.Name;
+                                            let title = `${namespace}/${name}`;
+                                            let memory = pod.Memory;
+                                            let CPU = pod.CPU;
+                                            return (<rect key={`${title}`}
+                                                          width={pod.CPU}
+                                                          height={pod.Memory/MiB}
+                                                          x = {xs[index]}
+                                                          y = {ys[index]}
+                                                          transform={`scale(${scaleX} ${scaleY})`}
+                                                          style={{stroke: "#000", fill: this.state.graphicalNamespaceColors[namespace]||"#fff"}}>
+                                                    <title>{`${title}: ${Math.round(memory/MiB)}Mi, ${CPU}m`}</title>
+                                                </rect>
+                                        )
+                                   }), (<rect key={`${key}-free`}
+                                             x={xs[xs.length - 1]}
+                                             y={ys[ys.length - 1] + lastPod.Memory / MiB}
+                                             width={nodeCPU - (xs[xs.length - 1] + lastPod.CPU)}
+                                             height={(nodeMemory - (ys[ys.length - 1] + lastPod.Memory/MiB))}
+                                             transform={`scale(${scaleX} ${scaleY})`}
+                                             className="free">
+                                            <title>{`Free: ${Math.round(data.Capacity.Memory/MiB-ys[ys.length-1])}Mi, ${data.Capacity.CPU-xs[xs.length-1]}m`}</title>
+                                        </rect>)]}
                             </svg>
                         </CardContent>
                     </Card>
