@@ -91,7 +91,7 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
     }
 
     componentDidMount() {
-        fetch("/podrequests").then((data) => data.json())
+        fetch(`${window.location.pathname}podrequests`).then((data) => data.json())
             .then((requests) => {
                 this.assignNamespaceColors(requests);
                 this.setState({requests: requests})
