@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
 import {SvgIcon} from "@mui/material";
 import {FormGroup, FormControlLabel, Switch} from "@mui/material";
 import {ReactComponent as NodeIcon} from "./node.svg";
@@ -14,12 +15,25 @@ import {useCookies} from "react-cookie";
 
 
 export default function ButtonAppBar() {
-    const [cookies, setCookie] = useCookies(['graphical']);
+    const [cookies, setCookie] = useCookies(['graphical', 'showActualMemory']);
     const [graphical, setGraphical] = React.useState(cookies.graphical);
+    const [showActualMemory, setShowActualMemory] = React.useState(cookies.showActualMemory);
+    const [loading, setLoading] = React.useState<boolean>(false);
+    const requestsRef = React.useRef<PodRequests>(null);
+
     const handleOnGraphicalChange = (event:React.ChangeEvent<HTMLInputElement>) => {
         setCookie('graphical', event.target.checked, {path:'/'});
         setGraphical(event.target.checked)
     }
+    const handleOnShowActualMemoryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setCookie('showActualMemory', event.target.checked, {path:'/'});
+        setShowActualMemory(event.target.checked);
+    }
+
+    const loadingCallback = (flag: boolean) => {
+        setLoading(flag);
+    }
+
     return (<>
       <Box sx={{ flexGrow: 1 }}>
         <AppBar position="static">
@@ -34,9 +48,18 @@ export default function ButtonAppBar() {
                 <SvgIcon><NodeIcon  /></SvgIcon>
             </IconButton>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Cluster Resource Requests
+                {(loading) ? "Loading Cluster Resource Request ..." : "Cluster Resource Requests"}
             </Typography>
+              <Button variant="contained" onClick={() => { if (requestsRef.current) { requestsRef.current.getData()}}}>
+                  Reload
+              </Button>
             <FormGroup>
+                <FormControlLabel
+                    control={
+                    <Switch checked={showActualMemory}
+                            onChange={handleOnShowActualMemoryChange}
+                            aria-label={"actual vs. requested memory switch"}/>}
+                        label={showActualMemory ? 'Actual Memory in Use' : 'Requested Memory'}/>
                 <FormControlLabel
                     control={
                       <Switch checked={graphical}
@@ -47,8 +70,8 @@ export default function ButtonAppBar() {
           </Toolbar>
         </AppBar>
           <Box component="main">
-              <PodRequests graphical={graphical}/>
-
+              <PodRequests ref={requestsRef} graphical={graphical} showActualMemory={showActualMemory}
+                           loadingCallback={loadingCallback}/>
           </Box>
 
       </Box>

@@ -57,11 +57,14 @@ interface PodMap<T> {
 type PodRequestsState = {
     namespaceColors: {[namespace: string]: string},
     graphicalNamespaceColors: {[namespace: string]: string},
-    requests: PodMap<PodData>
+    requests: PodMap<PodData>,
+    loadingCallback: ((flag: boolean) => void) | undefined
 }
 
 type PodRequestsProps = {
-    graphical?: boolean
+    graphical?: boolean;
+    showActualMemory?: boolean;
+    loadingCallback?: (flag: boolean) => void;
 }
 
 
@@ -71,7 +74,8 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
         this.state = {
             namespaceColors: {},
             graphicalNamespaceColors: {},
-            requests: {}
+            requests: {},
+            loadingCallback: props.loadingCallback
         }
     }
 
@@ -91,12 +95,23 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
         this.setState({namespaceColors: colors, graphicalNamespaceColors: graphicalColors});
     }
 
-    componentDidMount() {
-        fetch(`${window.location.pathname}podrequests`).then((data) => data.json())
+    getData = async () => {
+        const endpoint = this.props.showActualMemory ? "podmemory" : "podrequests";
+        if (this.state.loadingCallback) {
+            this.state.loadingCallback(true);
+        }
+        fetch(`${window.location.pathname}${endpoint}`).then((data) => data.json())
             .then((requests) => {
                 this.assignNamespaceColors(requests);
                 this.setState({requests: requests})
+                if (this.state.loadingCallback) {
+                    this.state.loadingCallback(false);
+                }
             })
+    }
+
+    componentDidMount() {
+        this.getData();
     }
 
     renderAsBinPacking = (requests: PodMap<PodData>) => {
@@ -153,7 +168,7 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                                              height={(nodeMemory - (ys[ys.length - 1] + lastPod.Memory/MiB))}
                                              transform={`scale(${scaleX} ${scaleY})`}
                                              className="free">
-                                            <title>{`Free: ${Math.round(data.Capacity.Memory/MiB-ys[ys.length-1])}Mi, ${data.Capacity.CPU-xs[xs.length-1]}m`}</title>
+                                            <title>{`Unrequested: ${Math.round(data.Capacity.Memory/MiB-ys[ys.length-1])}Mi, ${data.Capacity.CPU-xs[xs.length-1]}m`}</title>
                                         </rect>)]}
                             </svg>
                         </CardContent>
@@ -179,7 +194,7 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                         <CardHeader title={key}></CardHeader>
                         <Table component={CardContent} sx={{maxWidth: 600, minWidth: 300}}>
                             <TableHead >
-                                <TableRow><TableCell>Pod</TableCell><TableCell>Memory</TableCell><TableCell>CPU</TableCell></TableRow>
+                                <TableRow><TableCell>Pod</TableCell><TableCell>Memory (MiB)</TableCell><TableCell>CPU</TableCell></TableRow>
                             </TableHead>
                             <TableBody>
                                 {
@@ -190,7 +205,7 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                                         return (
                                             <TableRow key={`${request.Namespace}/${request.Name}`}>
                                                 <TableCell sx={{color: color}}>{`${request.Namespace}/${request.Name}`}</TableCell>
-                                                <TableCell sx={{color: color, textAlign: "right"}}>{`${request.Memory/MiB}`}</TableCell>
+                                                <TableCell sx={{color: color, textAlign: "right"}}>{`${(request.Memory/MiB).toFixed(0)}`}</TableCell>
                                                 <TableCell sx={{color: color, textAlign: "right"}}>{`${request.CPU}`}</TableCell>
                                             </TableRow>
                                         )})
@@ -199,7 +214,7 @@ export class PodRequests extends Component<PodRequestsProps,PodRequestsState> {
                             <TableFooter>
                                 <TableRow>
                                     <TableCell >Total</TableCell>
-                                    <TableCell sx={{textAlign: "right"}}>{`${totalMemory}`}</TableCell>
+                                    <TableCell sx={{textAlign: "right"}}>{`${totalMemory.toFixed(0)}`}</TableCell>
                                     <TableCell sx={{textAlign: "right"}}>{`${totalCPU}`}</TableCell>
                                 </TableRow>
                                 <TableRow>

@@ -8,15 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
+	metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	//
 	// Uncomment to load all auth plugins
 	// _ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -78,6 +78,46 @@ func getNodeInfo(clientset *kubernetes.Clientset, node v1.Node) NodeCapacity {
 	}
 }
 
+func getMemory(metricsclientset metricsclientset.Interface, pod v1.Pod) (resource.Quantity, error) {
+	pm := metricsclientset.MetricsV1beta1().PodMetricses(pod.Namespace)
+	podmetrics, err := pm.Get(context.TODO(), pod.Name, metav1.GetOptions{})
+	quantity := resource.Quantity{}
+	if err == nil {
+		for _, container := range podmetrics.Containers {
+			memory := container.Usage.Memory()
+			quantity.Add(*memory)
+		}
+	}
+	return quantity, err
+}
+
+func getPodMemory(clientset *kubernetes.Clientset, metricsclientset metricsclientset.Interface) ClusterData {
+	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	clusterData := ClusterData{}
+	if err != nil {
+		panic(err.Error())
+	}
+	for _, node := range nodes.Items {
+		capacity := getNodeInfo(clientset, node)
+		opts := metav1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", node.Name)}
+		pods, err := clientset.CoreV1().Pods("").List(context.TODO(), opts)
+		if err != nil {
+			panic(err.Error())
+		}
+		var podData []PodData
+		for _, pod := range pods.Items {
+			memory, err := getMemory(metricsclientset, pod)
+			cpu, ok2 := collectCPU(pod).AsInt64()
+			mem64, ok3 := memory.AsInt64()
+			if err == nil && ok2 && ok3 {
+				podData = append(podData, PodData{Name: pod.Name, Namespace: pod.Namespace, Memory: mem64, CPU: cpu})
+			}
+		}
+		clusterData[node.Name] = NodeData{Capacity: capacity, Pods: podData}
+	}
+	return clusterData
+}
+
 func getResourceRequests(clientset *kubernetes.Clientset) ClusterData {
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	clusterData := ClusterData{}
@@ -109,7 +149,15 @@ func isInCluster() bool {
 	return err == nil
 }
 
-func getClientSet() *kubernetes.Clientset {
+func getConfig(kubeconfig *string) *rest.Config {
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+	return config
+}
+
+func getClientSet(kubeconfig *string) *kubernetes.Clientset {
 	if isInCluster() {
 		config, err := rest.InClusterConfig()
 		if err != nil {
@@ -122,21 +170,7 @@ func getClientSet() *kubernetes.Clientset {
 		}
 		return clientset
 	} else {
-		var kubeconfig *string
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		} else {
-			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-		}
-		flag.Parse()
-
-		// use the current context in kubeconfig
-		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			panic(err.Error())
-		}
-
-		// create the clientset
+		config := getConfig(kubeconfig)
 		clientset, err := kubernetes.NewForConfig(config)
 		if err != nil {
 			panic(err.Error())
@@ -145,11 +179,43 @@ func getClientSet() *kubernetes.Clientset {
 	}
 }
 
+func getMetricsClientSet(kubeconfig *string) *metricsclientset.Clientset {
+	if isInCluster() {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			panic(err.Error())
+		}
+		// creates the clientset
+		clientset, err := metricsclientset.NewForConfig(config)
+		if err != nil {
+			panic(err.Error())
+		}
+		return clientset
+	} else {
+		config := getConfig(kubeconfig)
+		clientset, err := metricsclientset.NewForConfig(config)
+		if err != nil {
+			panic(err.Error())
+		}
+		return clientset
+	}
+}
+
 func main() {
+	var kubeconfig *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	port := flag.Int("port", 8080, "Port to listen on")
+	host := flag.String("host", "localhost", "Host to bind")
+	flag.Parse()
 	staticAssets := []string{"asset-manifest.json", "favicon.ico", "logo192.png", "logo512.png",
 		"manifest.json", "robots.txt"}
 
-	clientset := getClientSet()
+	clientset := getClientSet(kubeconfig)
+	metricsClientSet := getMetricsClientSet(kubeconfig)
 	router := gin.Default()
 	rootPath, ok := os.LookupEnv("CLUSTERVIEW_ROOTPATH")
 	var rootPathRouter *gin.RouterGroup
@@ -166,6 +232,17 @@ func main() {
 	rootPathRouter.StaticFile("/.", "./build/index.html")
 	rootPathRouter.StaticFile("/index.html", "./build/index.html")
 	rootPathRouter.Static("/static", "./build/static")
+	rootPathRouter.GET("/podmemory", func(c *gin.Context) {
+		pods := getPodMemory(clientset, metricsClientSet)
+		byteslice, err := json.Marshal(pods)
+		if err != nil {
+			panic(err.Error())
+		} else {
+			c.Writer.Header().Set("Content-Type", "application/json")
+			c.Writer.WriteHeader(http.StatusOK)
+			c.Writer.Write(byteslice)
+		}
+	})
 	rootPathRouter.GET("/podrequests", func(c *gin.Context) {
 		requests := getResourceRequests(clientset)
 		byteslice, err := json.Marshal(requests)
@@ -177,6 +254,6 @@ func main() {
 			c.Writer.Write(byteslice)
 		}
 	})
-	router.Run()
+	router.Run(fmt.Sprintf("%s:%d", *host, *port))
 
 }
