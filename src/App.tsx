@@ -47,12 +47,14 @@ export default function ButtonAppBar() {
             >
                 <SvgIcon><NodeIcon  /></SvgIcon>
             </IconButton>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Box>
+                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
                 {(loading) ? "Loading Cluster Resource Request ..." : "Cluster Resource Requests"}
-            </Typography>
-              <Button variant="contained" onClick={() => { if (requestsRef.current) { requestsRef.current.getData()}}}>
+                </Typography>
+                <Button variant="contained" onClick={() => { if (requestsRef.current) { requestsRef.current.getData()}}}>
                   Reload
-              </Button>
+                </Button>
+            </Box>
             <FormGroup>
                 <FormControlLabel
                     control={

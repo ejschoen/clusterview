@@ -1,0 +1,111 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: clusterview
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: clusterview-sa
+  namespace: clusterview
+automountServiceAccountToken: true
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clusterview-cluster-role
+rules:
+  - apiGroups:
+     - "apps/v1"
+     - "v1"
+     - "metrics.k8s.io"
+     - ""
+    resources:
+     - "pods"
+     - "nodes"
+    verbs:
+     - "list"
+     - "get"
+     - "watch"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clusterview-crb
+roleRef:
+  name: clusterview-cluster-role
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: clusterview-sa
+  namespace: clusterview
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: clusterview
+  namespace: clusterview
+spec:
+  selector:
+    matchLabels:
+      app: clusterview
+  template:
+    metadata:
+      labels:
+         app: clusterview
+    spec:
+      serviceAccountName: clusterview-sa
+      automountServiceAccountToken: true
+      containers:
+       - name: clusterview
+         image: 192.168.0.200:5000/clusterview:0.2.0-SNAPSHOT
+         imagePullPolicy: Always
+         resources:
+           requests:
+             memory: 15Mi
+             cpu: 50m
+         ports:
+          - containerPort: 8080
+            name: clusterview
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: clusterview
+  namespace: clusterview
+spec:
+  type: NodePort
+  selector:
+    app: clusterview
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+    name: clusterview-port
+---
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: 60m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "900"
+    nginx.org/mergeable-ingress-type: minion
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  name: clusterview
+  namespace: clusterview
+spec:
+  rules:
+   - host: btc.i2kconnect.com
+     http:
+      paths:
+       - path: /k8s/clusterview(/|$)(.*)
+         pathType: ImplementationSpecific
+         backend:
+           service:
+             name: clusterview
+             port:
+               number: 8080
+       

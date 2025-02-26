@@ -1,4 +1,4 @@
-FROM golang:1.19.2-alpine3.15 AS gobuilder
+FROM golang:1.24.0-alpine3.21 AS gobuilder
 
 WORKDIR /clusterview
 COPY go.* .
@@ -16,4 +16,4 @@ FROM golang:1.19.2-alpine3.15
 WORKDIR /clusterview
 COPY --from=gobuilder /clusterview/clusterview clusterview
 COPY --from=jsbuilder /clusterview/build/ ./build
-CMD ./clusterview
+CMD ./clusterview --host 0.0.0.0
